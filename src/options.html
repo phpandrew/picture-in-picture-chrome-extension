@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Picture-in-Picture Settings</title>
+  <style>
+    :root {
+      --bg: #f4f4f5; --card: #fff; --text: #18181b; --muted: #71717a;
+      --line: #e4e4e7; --accent: #fb542b; --accent-ink: #fff; --field: #fafafa;
+      --note-bg: #fff7ed; --note-line: #fdba74;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111113; --card: #1c1c1f; --text: #f4f4f5; --muted: #a1a1aa;
+        --line: #2e2e33; --field: #141416; --note-bg: #2a1d14; --note-line: #9a4b1f;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--text);
+      font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: var(--muted); margin: 0 0 20px; }
+    section {
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+      padding: 20px; margin-bottom: 16px;
+    }
+    h2 { font-size: 15px; margin: 0 0 14px; }
+    .row { display: grid; grid-template-columns: 140px 1fr; gap: 10px 16px; align-items: center; margin-bottom: 14px; }
+    .row > label { font-weight: 600; }
+    .help { color: var(--muted); font-size: 12.5px; grid-column: 2; margin-top: -6px; }
+    input[type=number], select, textarea {
+      font: inherit; color: var(--text); background: var(--field);
+      border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+    }
+    input[type=number] { width: 96px; }
+    select { min-width: 240px; max-width: 100%; }
+    textarea { width: 100%; min-height: 150px; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .size { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .modes { display: grid; gap: 8px; }
+    .mode {
+      display: grid; grid-template-columns: 20px 1fr; gap: 2px 8px; padding: 10px 12px;
+      border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+    }
+    .mode:has(input:checked) { border-color: var(--accent); }
+    .mode input { margin: 3px 0 0; accent-color: var(--accent); }
+    .mode b { font-weight: 600; }
+    .mode span { grid-column: 2; color: var(--muted); font-size: 12.5px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 38px); grid-template-rows: repeat(3, 26px); gap: 4px;
+      padding: 6px; border: 1px solid var(--line); border-radius: 8px; width: max-content; background: var(--field); }
+    .grid button {
+      border: 1px solid var(--line); border-radius: 4px; background: var(--card); cursor: pointer; padding: 0;
+    }
+    .grid button[aria-pressed=true] { background: var(--accent); border-color: var(--accent); }
+    .note { background: var(--note-bg); border: 1px solid var(--note-line); border-radius: 8px;
+      padding: 8px 12px; font-size: 12.5px; margin-bottom: 14px; }
+    .disabled { opacity: .45; pointer-events: none; }
+    .bar { display: flex; gap: 10px; align-items: center; position: sticky; bottom: 12px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .bar button { font: 600 14px system-ui, sans-serif; border-radius: 6px; padding: 8px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--field); color: var(--text); }
+    .bar #save { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    #status { color: var(--muted); font-size: 13px; }
+    code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+    @media (max-width: 520px) {
+      .row { grid-template-columns: 1fr; }
+      .help { grid-column: 1; margin-top: -8px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Picture-in-Picture settings</h1>
+  <p class="sub">Toolbar button / <code>Alt+P</code> toggles. Double-click the toolbar button to open this page.</p>
+
+  <section>
+    <h2>Window</h2>
+    <div class="row">
+      <label>Open as</label>
+      <div class="modes">
+        <label class="mode">
+          <input type="radio" name="mode" value="floating">
+          <b>Floating PiP (always on top)</b>
+          <span>The browser's picture-in-picture window. Size is applied; position isn't, because the browser places it and remembers where you last dragged it.</span>
+        </label>
+        <label class="mode">
+          <input type="radio" name="mode" value="popout">
+          <b>Pop-out window (choose monitor &amp; position)</b>
+          <span>Moves the tab into a borderless window placed exactly where you set below. Not always on top. <code>Alt+P</code> or the "Back to tab" button returns it.</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="row" id="styleRow">
+      <label>Floating style</label>
+      <div class="modes">
+        <label class="mode">
+          <input type="radio" name="style" value="controls">
+          <b>With controls</b>
+          <span>Uses your default size and adds play/seek/volume controls. The browser always shows a top bar with the site name; drag the window by that bar.</span>
+        </label>
+        <label class="mode">
+          <input type="radio" name="style" value="minimal">
+          <b>Minimal (no top bar)</b>
+          <span>The browser's native video PiP. Drag it from anywhere. The browser picks the size; resize by dragging an edge.</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="row">
+      <label for="w">Default size</label>
+      <div class="size">
+        <input type="number" id="w" min="0" max="7680" step="10" placeholder="auto"> ×
+        <input type="number" id="h" min="0" max="4320" step="10" placeholder="auto"> px
+      </div>
+      <div class="help">Video area size. Leave height empty to follow the video's aspect ratio; leave both empty for the video's native size. The 💾 button in the PiP controls also saves here.</div>
+    </div>
+
+    <div id="placement">
+      <div class="note" id="floatNote">Monitor and position apply to <b>pop-out window</b> mode only.</div>
+      <div class="row">
+        <label for="display">Monitor</label>
+        <select id="display"></select>
+      </div>
+      <div class="row">
+        <label>Position</label>
+        <div class="grid" id="anchor" role="group" aria-label="Window position"></div>
+      </div>
+      <div class="row">
+        <label for="margin">Edge margin</label>
+        <div class="size"><input type="number" id="margin" min="0" max="500" step="2"> px</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Automatic PiP on tab switch</h2>
+    <div class="row" style="grid-template-columns:1fr">
+      <textarea id="sites" spellcheck="false"></textarea>
+      <div class="help" style="grid-column:1">One URL pattern per line (e.g. <code>https://www.youtube.com/*</code>). Empty = all sites. Lines starting with <code>#</code> are ignored. Turn the feature on/off from the toolbar button's right-click menu. Always uses the floating window.</div>
+    </div>
+  </section>
+
+  <div class="bar">
+    <button id="save">Save</button>
+    <button id="reset">Reset to defaults</button>
+    <span id="status"></span>
+  </div>
+</main>
+<script src="options.js"></script>
+</body>
+</html>
