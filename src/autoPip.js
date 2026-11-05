@@ -159,7 +159,7 @@ function manualTriggerPip() {
     if (window._autoPipWindow && !window._autoPipWindow.closed) return;
 
     const { w, h } = pipSizeFor(video, { pipSizeW: stored && stored.w, pipSizeH: stored && stored.h });
-    window.documentPictureInPicture.requestWindow({ width: w, height: h })
+    requestSizedPipWindow(w, h)
       .then((pipWin) => {
         window._autoPipWindow = pipWin;
         setupAutoPipWindow(pipWin, video);
@@ -170,10 +170,40 @@ function manualTriggerPip() {
   });
 }
 
+// Open a Document PiP window whose *inner* size matches w x h.
+// With fractional display scaling (and Chrome's remembered bounds) the window
+// rarely comes out at the requested size, so we measure what we got and keep a
+// per-axis correction factor that the next request is multiplied by.
+// preferInitialWindowPlacement stops Chrome reusing the last window's size.
+async function requestSizedPipWindow(w, h) {
+  let k = { x: 1, y: 1 };
+  try {
+    const st = await chrome.storage.local.get({ pipScaleK: null });
+    if (st.pipScaleK && st.pipScaleK.x > 0.5 && st.pipScaleK.x < 2 && st.pipScaleK.y > 0.5 && st.pipScaleK.y < 2) k = st.pipScaleK;
+  } catch (_) {}
+  const reqW = Math.round(w * k.x), reqH = Math.round(h * k.y);
+  const pipWin = await window.documentPictureInPicture.requestWindow({
+    width: reqW, height: reqH, preferInitialWindowPlacement: true,
+  });
+  pipWin.setTimeout(() => {
+    const aw = pipWin.innerWidth, ah = pipWin.innerHeight;
+    if (!aw || !ah) return;
+    // Chrome clamps oversized requests; don't learn from a clamped result.
+    if (aw < reqW * 0.8 || ah < reqH * 0.8) return;
+    const nx = Math.abs(aw - w) > 2 ? k.x * w / aw : k.x;
+    const ny = Math.abs(ah - h) > 2 ? k.y * h / ah : k.y;
+    if (nx !== k.x || ny !== k.y) {
+      chrome.storage.local.set({ pipScaleK: { x: nx, y: ny } });
+      try { chrome.runtime.sendMessage({ type: "pipLog", msg: `[PiP] wanted ${w}x${h}, requested ${reqW}x${reqH}, got ${aw}x${ah}` }); } catch (_) {}
+    }
+  }, 400);
+  return pipWin;
+}
+
 function openDocumentPipFor(video, stored, onFallback) {
   const w = (stored && stored.w > 0) ? stored.w : Math.max(320, video.videoWidth  || 640);
   const h = (stored && stored.h > 0) ? stored.h : Math.max(180, video.videoHeight || 360);
-  return window.documentPictureInPicture.requestWindow({ width: w, height: h })
+  return requestSizedPipWindow(w, h)
     .then((pipWin) => {
       window._autoPipWindow = pipWin;
       setupAutoPipWindow(pipWin, video);
@@ -244,8 +274,27 @@ function triggerAutoPip() {
   });
 }
 
+// Hide the page's copy of the video while the PiP window mirrors it.
+// brightness(0) paints it black but keeps it laid out and decoding.
+function hidePipSource(v) {
+  if (!document.getElementById("__pip_hide_style")) {
+    const st = document.createElement("style");
+    st.id = "__pip_hide_style";
+    st.textContent = "video[data-pip-source]{filter:brightness(0) !important;background:#000 !important}";
+    (document.head || document.documentElement).appendChild(st);
+  }
+  document.querySelectorAll("video[data-pip-source]").forEach((x) => { if (x !== v) x.removeAttribute("data-pip-source"); });
+  if (v) v.setAttribute("data-pip-source", "");
+}
+function showPipSource() {
+  document.querySelectorAll("video[data-pip-source]").forEach((x) => x.removeAttribute("data-pip-source"));
+  const st = document.getElementById("__pip_hide_style");
+  if (st) st.remove();
+}
+
 function setupAutoPipWindow(pipWin, initialVideo) {
   let video = initialVideo;
+  hidePipSource(video);
   const queryDeepFirst = (root, selectors) => {
     const list = Array.isArray(selectors) ? selectors : [selectors];
     const queue = [root];
@@ -697,6 +746,7 @@ function setupAutoPipWindow(pipWin, initialVideo) {
       video.removeEventListener("emptied", updateArtwork);
     } catch (_) {}
     video = newV;
+    hidePipSource(video);
     video.addEventListener("play", updatePlay);
     video.addEventListener("pause", updatePlay);
     video.addEventListener("volumechange", updateMute);
@@ -949,6 +999,7 @@ function setupAutoPipWindow(pipWin, initialVideo) {
     pipWin.clearInterval(artworkPoller);
     if (typeof movePoller !== "undefined") pipWin.clearInterval(movePoller);
     ro.disconnect();
+    showPipSource();
     window._autoPipWindow = null;
   });
   pipWin._setAutoClosing = () => { _autoClosing = true; };

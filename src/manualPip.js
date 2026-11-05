@@ -54,5 +54,5 @@
       video.addEventListener("leavepictureinpicture", clear, { once: true });
     }
   }
-  report({ ...result, action: result && result.ok ? "opened" : undefined });
+  report({ ...result, wanted: s.pipStyle, action: result && result.ok ? "opened" : undefined });
 })();

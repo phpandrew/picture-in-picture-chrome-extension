@@ -104,13 +104,13 @@
         </label>
         <label class="mode">
           <input type="radio" name="style" value="minimal">
-          <b>Minimal (no top bar)</b>
-          <span>The browser's native video PiP. Drag it from anywhere. The browser picks the size; resize by dragging an edge.</span>
+          <b>Minimal (native)</b>
+          <span>The browser's built-in video PiP: drag it from anywhere, no custom controls. <b>Ignores the size setting</b>: the browser always opens it small, bottom-right.</span>
         </label>
       </div>
     </div>
 
-    <div class="row">
+    <div class="row" id="sizeRow">
       <label for="w">Default size</label>
       <div class="size">
         <input type="number" id="w" min="0" max="7680" step="10" placeholder="auto"> ×

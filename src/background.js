@@ -161,7 +161,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     return true;
   }
   if (msg.type === "manualPipResult") {
-    if (msg.ok) flashBadge(msg.action === "closed" ? "OFF" : "PiP", "#188038");
+    if (msg.ok && msg.action !== "closed" && msg.mode === "native" && msg.wanted !== "minimal") {
+      // Document PiP was refused (no user activation) and we fell back to
+      // native PiP, so the size setting couldn't be applied.
+      flashBadge("SIZE", "#e37400");
+    } else if (msg.ok) flashBadge(msg.action === "closed" ? "OFF" : "PiP", "#188038");
     else flashBadge("ERR", "#d93025");
     reply({ ok: true });
     return true;

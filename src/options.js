@@ -73,6 +73,8 @@ function syncModeUI() {
   $("floatNote").hidden = !floating;
   for (const row of $("placement").querySelectorAll(".row")) row.classList.toggle("disabled", floating);
   $("styleRow").classList.toggle("disabled", !floating);
+  const minimal = (document.querySelector("input[name=style]:checked") || {}).value === "minimal";
+  $("sizeRow").classList.toggle("disabled", floating && minimal);
 }
 
 function fill(s) {
@@ -99,7 +101,7 @@ const num = (v) => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
-document.querySelectorAll("input[name=mode]").forEach((r) => r.addEventListener("change", syncModeUI));
+document.querySelectorAll("input[name=mode], input[name=style]").forEach((r) => r.addEventListener("change", syncModeUI));
 
 $("save").addEventListener("click", async () => {
   const prevSites = (await chrome.storage.local.get({ enabledSites: DEFAULT_SITES })).enabledSites;
