@@ -516,6 +516,47 @@ function setupAutoPipWindow(pipWin, initialVideo) {
     }
     #pip-controls[data-layout="micro"] .pip-row { justify-content: center; flex-wrap: wrap; }
     #pip-controls[data-layout="micro"] #pip-seek { min-width: 0; }
+
+    /* Centre transport: large, scales with the window */
+    #pip-center {
+      position: absolute; inset: 0; z-index: 9;
+      display: flex; align-items: center; justify-content: center;
+      gap: clamp(8px, 4vmin, 40px);
+      pointer-events: none;
+      opacity: 0; transition: opacity .2s;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,.35) 0%, transparent 60%);
+    }
+    #pip-wrap:hover #pip-center, #pip-center:focus-within { opacity: 1; }
+    #pip-center .pip-btn {
+      pointer-events: auto; border-radius: 50%;
+      width: clamp(36px, 13vmin, 110px); height: clamp(36px, 13vmin, 110px);
+      font-size: clamp(22px, 8vmin, 70px);
+      background: rgba(0,0,0,.35);
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,.6));
+    }
+    #pip-center .pip-btn:hover { background: rgba(255,255,255,.18); }
+    #pip-center #pip-play {
+      width: clamp(48px, 19vmin, 160px); height: clamp(48px, 19vmin, 160px);
+      font-size: clamp(30px, 12vmin, 100px);
+    }
+    #pip-center #pip-prev, #pip-center #pip-next {
+      width: clamp(28px, 9vmin, 76px); height: clamp(28px, 9vmin, 76px);
+      font-size: clamp(16px, 5vmin, 44px);
+    }
+    #pip-center .pip-btn svg { width: 1em; height: 1em; }
+    .pip-skip text { font: 700 6.5px system-ui, sans-serif; fill: currentColor; }
+
+    /* Visibility is driven by JS activity (see showControls), not :hover /
+       :focus-within, which stick after a click or when the pointer leaves. */
+    #pip-wrap #pip-center, #pip-wrap #pip-controls, #pip-wrap #pip-titlebar { opacity: 0 !important; }
+    #pip-wrap.show #pip-center, #pip-wrap.show #pip-controls, #pip-wrap.show #pip-titlebar { opacity: 1 !important; }
+    #pip-wrap:not(.show) { cursor: none; }
+
+    /* Bottom bar: seek + (optional) volume only */
+    #pip-controls[data-layout] { grid-template-areas: "seek" "audio"; grid-template-columns: minmax(0, 1fr); }
+    #pip-controls[data-layout="single"] { grid-template-areas: "seek audio"; grid-template-columns: minmax(0, 1fr) auto; }
+    #pip-controls.no-volume #pip-mute, #pip-controls.no-volume #pip-vol { display: none; }
+    #pip-controls.no-volume[data-layout] { grid-template-areas: "seek audio"; grid-template-columns: minmax(0, 1fr) auto; }
   `;
   pipWin.document.head.appendChild(style);
 
@@ -559,6 +600,12 @@ function setupAutoPipWindow(pipWin, initialVideo) {
   const svgMute  = '<svg viewBox="0 0 24 24"><path d="M16.5 12A4.5 4.5 0 0 0 14 7.97V11.18l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.7 8.7 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zm-13.27-4L4 9.27 7.73 13H4v4h4l5 5v-6.73L8.27 10.73l-2.54-2.73zM11.5 5L9.91 6.59 11.5 8.18V5z"/></svg>';
   const svgVol   = '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>';
 
+  const svgSkip = (dir, n) =>
+    '<svg class="pip-skip" viewBox="0 0 24 24"><g' + (dir > 0 ? ' transform="translate(24 0) scale(-1 1)"' : '') + '>' +
+    '<path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></g>' +
+    '<text x="12" y="15.6" text-anchor="middle">' + n + '</text></svg>';
+  let skipSec = 10;
+
   const mkBtn = (id, svg, title) => {
     const b = pipWin.document.createElement("button");
     b.className = "pip-btn"; b.id = id; b.title = title;
@@ -568,8 +615,8 @@ function setupAutoPipWindow(pipWin, initialVideo) {
   const prevBtn  = mkBtn("pip-prev",  svgPrev,  "Previous");
   const playBtn  = mkBtn("pip-play",  svgPlay,  "Play/Pause");
   const nextBtn  = mkBtn("pip-next",  svgNext,  "Next");
-  const back10Btn = mkBtn("pip-back10", svgBack10, "Back 10s");
-  const fwd10Btn = mkBtn("pip-fwd10", svgFwd10, "Forward 10s");
+  const back10Btn = mkBtn("pip-back10", svgSkip(-1, skipSec), "Back " + skipSec + "s");
+  const fwd10Btn = mkBtn("pip-fwd10", svgSkip(1, skipSec), "Forward " + skipSec + "s");
   const muteBtn  = mkBtn("pip-mute",  svgVol,   "Mute");
   const saveBtn  = pipWin.document.createElement("button");
   saveBtn.className = "pip-btn"; saveBtn.id = "pip-save"; saveBtn.title = "Save this size as the default";
@@ -596,8 +643,42 @@ function setupAutoPipWindow(pipWin, initialVideo) {
   rowAudio.append(muteBtn, volSlider, saveBtn);
 
   controls.dataset.layout = "single";
-  controls.append(rowTransport, rowSeek, rowAudio);
+  controls.append(rowSeek, rowAudio);
+  const center = pipWin.document.createElement("div");
+  center.id = "pip-center";
+  center.appendChild(rowTransport);
+  rowTransport.style.gap = "inherit";
+  wrap.appendChild(center);
   wrap.appendChild(controls);
+
+  // Show controls on pointer activity; hide after idle or when it leaves.
+  let hideTimer = 0;
+  let overControl = false;
+  const hideControls = () => { wrap.classList.remove("show"); };
+  const showControls = () => {
+    wrap.classList.add("show");
+    pipWin.clearTimeout(hideTimer);
+    hideTimer = pipWin.setTimeout(() => { if (!overControl && !seeking) hideControls(); }, 2500);
+  };
+  wrap.addEventListener("pointermove", showControls);
+  wrap.addEventListener("pointerdown", showControls);
+  pipWin.document.addEventListener("pointerleave", () => { overControl = false; pipWin.clearTimeout(hideTimer); hideControls(); });
+  pipWin.addEventListener("blur", () => { overControl = false; hideControls(); });
+  for (const el of [rowTransport, controls]) {
+    el.addEventListener("pointerover", (e) => { overControl = !!e.target.closest(".pip-btn, input"); });
+    el.addEventListener("pointerout", () => { overControl = false; });
+  }
+  // Don't let a clicked button keep focus (Space would re-trigger it).
+  wrap.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) b.blur(); });
+
+  // Player settings (options page): volume visibility + skip amount.
+  const applyPlayerSettings = (ps) => {
+    controls.classList.toggle("no-volume", !ps.showVolume);
+    skipSec = [5, 10, 15, 30, 60].includes(+ps.skipSeconds) ? +ps.skipSeconds : 10;
+    back10Btn.innerHTML = svgSkip(-1, skipSec); back10Btn.title = "Back " + skipSec + "s";
+    fwd10Btn.innerHTML = svgSkip(1, skipSec);  fwd10Btn.title = "Forward " + skipSec + "s";
+  };
+  chrome.storage.local.get({ showVolume: true, skipSeconds: 10 }, applyPlayerSettings);
   pipWin.document.body.appendChild(wrap);
 
   // ── Control logic (all actions on the source `video`) ─────────────────────
@@ -914,8 +995,8 @@ function setupAutoPipWindow(pipWin, initialVideo) {
   };
   prevBtn.addEventListener("click", () => { runTrackAction("prev"); });
   nextBtn.addEventListener("click", () => { runTrackAction("next"); });
-  back10Btn.addEventListener("click", () => { seekBy(-10); });
-  fwd10Btn.addEventListener("click", () => { seekBy(10); });
+  back10Btn.addEventListener("click", () => { seekBy(-skipSec); });
+  fwd10Btn.addEventListener("click", () => { seekBy(skipSec); });
 
   let seeking = false;
   seek.addEventListener("mousedown", () => { seeking = true; });

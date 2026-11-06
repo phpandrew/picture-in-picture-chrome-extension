@@ -11,6 +11,8 @@ https://www.twitch.tv/*`;
 const DEFAULTS = {
   windowMode: "floating",
   pipStyle: "controls",
+  showVolume: true,
+  skipSeconds: 10,
   pipSizeW: 0,
   pipSizeH: 0,
   popoutDisplay: "current",
@@ -75,11 +77,16 @@ function syncModeUI() {
   $("styleRow").classList.toggle("disabled", !floating);
   const minimal = (document.querySelector("input[name=style]:checked") || {}).value === "minimal";
   $("sizeRow").classList.toggle("disabled", floating && minimal);
+  const noControls = !floating || minimal;
+  $("volRow").classList.toggle("disabled", noControls);
+  $("skipRow").classList.toggle("disabled", noControls);
 }
 
 function fill(s) {
   for (const r of document.querySelectorAll("input[name=mode]")) r.checked = r.value === s.windowMode;
   for (const r of document.querySelectorAll("input[name=style]")) r.checked = r.value === s.pipStyle;
+  $("showVolume").checked = !!s.showVolume;
+  $("skipSeconds").value = String(s.skipSeconds);
   $("w").value = s.pipSizeW > 0 ? s.pipSizeW : "";
   $("h").value = s.pipSizeH > 0 ? s.pipSizeH : "";
   $("margin").value = s.popoutMargin;
@@ -108,6 +115,8 @@ $("save").addEventListener("click", async () => {
   const sites = $("sites").value.trim();
   await chrome.storage.local.set({
     windowMode: mode(),
+    showVolume: $("showVolume").checked,
+    skipSeconds: parseInt($("skipSeconds").value, 10) || 10,
     pipStyle: (document.querySelector("input[name=style]:checked") || {}).value || "controls",
     pipSizeW: num($("w").value),
     pipSizeH: num($("h").value),

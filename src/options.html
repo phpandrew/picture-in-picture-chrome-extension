@@ -119,6 +119,19 @@
       <div class="help">Video area size. Leave height empty to follow the video's aspect ratio; leave both empty for the video's native size. The 💾 button in the PiP controls also saves here.</div>
     </div>
 
+    <div class="row" id="volRow">
+      <label for="showVolume">Volume control</label>
+      <label style="font-weight:400"><input type="checkbox" id="showVolume"> Show mute and volume slider in the PiP window</label>
+    </div>
+    <div class="row" id="skipRow">
+      <label for="skipSeconds">Skip amount</label>
+      <select id="skipSeconds" style="min-width:120px">
+        <option value="5">5 seconds</option><option value="10">10 seconds</option>
+        <option value="15">15 seconds</option><option value="30">30 seconds</option>
+        <option value="60">60 seconds</option>
+      </select>
+    </div>
+
     <div id="placement">
       <div class="note" id="floatNote">Monitor and position apply to <b>pop-out window</b> mode only.</div>
       <div class="row">
